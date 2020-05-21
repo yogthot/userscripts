@@ -14,8 +14,6 @@
     
     let url = window.location.href;
     
-    console.log(url);
-    
     for(let i = 0; i < rewrite_map.length; i++){
         let rewrite = rewrite_map[i][0];
         let replace = rewrite_map[i][1];
