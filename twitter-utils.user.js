@@ -9,16 +9,77 @@
 const enable_rightClick_openOrig = false;
 const enable_mouseOver_preview = true;
 
-const mouseOver_preview_enable_border = true;
+const mouseOver_preview_enable_outline = true;
+const mouseOver_preview_contained = false;
+const mouseOver_preview_centerInThumbnail = false;
+const mouseOver_preview_keepVisible = true;
+const mouseOver_preview_keepVisible_padding = 5;
 
+
+
+function isThumbnailImage(element){
+    // if there's a better way to check this, please let me know
+    return window.getComputedStyle(element).cursor == "pointer";
+}
 
 function get(url, param){
     return new URL(url).searchParams.get(param);
 }
 
-function isThumbnailImage(element){
-    // if there's a better way to check this, please let me know
-    return window.getComputedStyle(element).cursor == "pointer";
+function closest(el, predicate) {
+    do if (predicate(el)) return el;
+    while (el = el && el.parentNode);
+}
+
+function calculatePreviewLocation(e){
+    let container = closest(e, (el) => {
+        let role = el.attributes["role"];
+        return role && role.value == "link";
+    }) || e;
+    let content = mouseOver_preview_centerInThumbnail ? container : e;
+    
+    let padding = mouseOver_preview_keepVisible_padding;
+    
+    let scrollY = window.scrollY + padding;
+    let scrollX = window.scrollX + padding;
+    let vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) - (padding * 2);
+    let vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - (padding * 2);
+    let iw = e.naturalWidth;
+    let ih = e.naturalHeight;
+    let rect = content.getBoundingClientRect();
+    
+    // logic to fit the image inside the window
+    if(mouseOver_preview_contained){
+        let containerRect = container.getBoundingClientRect();
+        let ratio = Math.max(containerRect.width / iw, containerRect.height / ih);
+        iw *= ratio;
+        ih *= ratio;
+    }
+    
+    if(mouseOver_preview_keepVisible){
+        if(iw > vw || ih > vh){
+            let ratio = Math.min(vw / iw, vh / ih);
+            iw *= ratio;
+            ih *= ratio;
+        }
+    }
+    
+    let top = (rect.top + window.scrollY) - ((ih - rect.height) / 2);
+    let left = (rect.left + window.scrollX) - ((iw - rect.width) / 2);
+    
+    if(mouseOver_preview_keepVisible){
+        if(top < scrollY) top = scrollY;
+        else if(top + ih > scrollY + vh) top = scrollY + vh - ih;
+        if(left < scrollX) left = scrollX;
+        else if(left + iw > scrollX + vw) top = scrollX + vw - iw;
+    }
+    
+    return {
+        x: left,
+        y: top,
+        width: iw,
+        height: ih
+    };
 }
 
 window.addEventListener("load", function(ev){
@@ -39,62 +100,49 @@ window.addEventListener("load", function(ev){
     }
     
     const uncroppedThumbnail = "uncropped-thumbnail";
-    const padding = 5;
     if(enable_mouseOver_preview){
         document.addEventListener("mouseover", function(ev){
             let e = ev.target;
             if(e.tagName == "IMG" && !e.classList.contains(uncroppedThumbnail) && isThumbnailImage(e)){
                 let url = e.src;
                 
-                // cleanup any images that may have been left behind
-                let old = document.getElementsByClassName(uncroppedThumbnail);
-                for(let oldImg of old){
-                    oldImg.parentNode.removeChild(oldImg);
-                }
-                
-                let scrollY = window.scrollY + padding;
-                let scrollX = window.scrollX + padding;
-                let vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) - (padding * 2);
-                let vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - (padding * 2);
-                let iw = e.naturalWidth;
-                let ih = e.naturalHeight;
-                let rect = e.getBoundingClientRect();
-                
-                // logic to fit the image inside the window
-                let ratio = 1;
-                if(iw > vw || ih > vh){
-                    let ratio = Math.min(vw / iw, vh / ih);
-                    iw *= ratio;
-                    ih *= ratio;
-                }
-                
-                let top = (rect.top + window.scrollY) - ((ih - e.height) / 2);
-                let left = (rect.left + window.scrollX) - ((iw - e.width) / 2);
-                
-                if(top < scrollY) top = scrollY;
-                else if(top + ih > scrollY + vh) top = scrollY + vh - ih;
-                if(left < scrollX) left = scrollX;
-                else if(left + iw > scrollX + vw) top = scrollX + vw - iw;
+                let loc = calculatePreviewLocation(e);
                 
                 // create the uncropped thumbnail preview and add it to the page
                 let img = document.createElement("img");
                 img.classList.add(uncroppedThumbnail);
                 img.src = url;
                 img.style.position = "absolute";
-                img.style.top = top + "px";
-                img.style.left = left + "px";
-                img.style.width = iw + "px";
-                img.style.height = ih + "px";
+                img.style.left = loc.x + "px";
+                img.style.top = loc.y + "px";
+                img.style.width = loc.width + "px";
+                img.style.height = loc.height + "px";
                 img.style.zIndex = "2147483647";
                 img.style.pointerEvents = "none";
-                e.addEventListener("mouseout", () => img.parentNode.removeChild(img));
                 
-                if(mouseOver_preview_enable_border){
-                    img.style.border = "1px solid rgb(133, 156, 173)";
-                    img.style.borderRadius = "0px";
+                if(mouseOver_preview_enable_outline){
+                    img.style.outline = "1px solid rgb(133, 156, 173)";
                 }
                 
                 document.body.appendChild(img);
+                
+                let updating = true;
+                function update(){
+                    if(updating){
+                        let loc = calculatePreviewLocation(e);
+                        img.style.left = loc.x + "px";
+                        img.style.top = loc.y + "px";
+                        img.style.width = loc.width + "px";
+                        img.style.height = loc.height + "px";
+                        window.requestAnimationFrame(update);
+                    }
+                }
+                window.requestAnimationFrame(update);
+                
+                e.addEventListener("mouseout", () => {
+                    updating = false;
+                    img.parentNode.removeChild(img);
+                });
             }
         });
     }
