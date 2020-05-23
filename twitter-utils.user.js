@@ -1,5 +1,6 @@
 // ==UserScript==
 // @name        twitter utils
+// @version     1.0
 // @namespace   Violentmonkey Scripts
 // @include     http*://twitter.com/*
 // @grant       GM_openInTab
@@ -71,7 +72,7 @@ function calculatePreviewLocation(e){
         if(top < scrollY) top = scrollY;
         else if(top + ih > scrollY + vh) top = scrollY + vh - ih;
         if(left < scrollX) left = scrollX;
-        else if(left + iw > scrollX + vw) top = scrollX + vw - iw;
+        else if(left + iw > scrollX + vw) left = scrollX + vw - iw;
     }
     
     return {
@@ -126,8 +127,17 @@ window.addEventListener("load", function(ev){
                 
                 document.body.appendChild(img);
                 
+                function removeImg(){
+                    updating = false;
+                    img.parentNode.removeChild(img);
+                }
+                
                 let updating = true;
                 function update(){
+                    // if element is not visible (or removed from the DOM?)
+                    if(e.offsetParent === null)
+                        removeImg();
+                    
                     if(updating){
                         let loc = calculatePreviewLocation(e);
                         img.style.left = loc.x + "px";
@@ -139,10 +149,7 @@ window.addEventListener("load", function(ev){
                 }
                 window.requestAnimationFrame(update);
                 
-                e.addEventListener("mouseout", () => {
-                    updating = false;
-                    img.parentNode.removeChild(img);
-                });
+                e.addEventListener("mouseout", removeImg);
             }
         });
     }
