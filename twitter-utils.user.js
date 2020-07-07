@@ -43,8 +43,8 @@ function calculatePreviewLocation(e){
     
     let scrollY = window.scrollY + padding;
     let scrollX = window.scrollX + padding;
-    let vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) - (padding * 2);
-    let vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - (padding * 2);
+    let vw = document.documentElement.clientWidth - (padding * 2);
+    let vh = document.documentElement.clientHeight - (padding * 2);
     let iw = e.naturalWidth;
     let ih = e.naturalHeight;
     let rect = content.getBoundingClientRect();
