@@ -3,6 +3,7 @@
 // @version     1.0
 // @namespace   Violentmonkey Scripts
 // @include     http*://twitter.com/*
+// @include     http*://*.twitter.com/*
 // @grant       GM_openInTab
 // @run-at      document-start
 // ==/UserScript==
@@ -89,7 +90,7 @@ window.addEventListener("load", function(ev){
             let e = ev.target;
             if(e.tagName == "IMG"){
                 let format = get(e.src, "format");
-                let url = e.src.split("?")[0] + "." + format + ":orig";
+                let url = e.src.split("?")[0] + "?format=" + format + "&name=orig";
                 
                 GM_openInTab(url, true);
                 
